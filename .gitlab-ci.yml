@@ -1,0 +1,68 @@
+stages:
+  - build
+
+#develop-------------------------------------
+  - tweety-counter-tck-test.demobet.lan
+  
+
+variables:
+  DOCKER_DRIVER: overlay2
+
+build:
+  image: localhost:5000/golang-build-15
+  stage: build
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^develop/
+      when: on_success
+    - if: $CI_COMMIT_REF_NAME =~ /^v/
+      when: on_success
+    - when: never
+  allow_failure: false
+
+  script:
+    - export GOPATH=/opt/go
+    - export GO111MODULE=on
+    - export GOROOT=/usr/local/go
+    - export GOPRIVATE=gitlab.com
+
+    - git config --global credential.helper store
+    - echo "https://oauth2:${job_token}@gitlab.com" > ~/.git-credentials
+
+    - cd /builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}
+    - go get
+    - CGO_ENABLED=0 go build
+
+    - rm -R /builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/docs || true
+    #- swag init --parseDependency -d /builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME} -o /builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/docs
+
+    # Create artifact and upload to artifact repo
+    - cd /builds/${CI_PROJECT_NAMESPACE}
+    - tar -zcf ${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}.tar ${CI_PROJECT_NAME}
+    - rsync -a --progress ${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}.tar root@artifacts.leapbit.com:/root/
+
+
+#develop-------------------------------------
+test:deploy:
+  image: localhost:5000/demobet-deploy
+  stage: tweety-counter-tck-test.demobet.lan
+
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^develop/ || $CI_COMMIT_REF_NAME =~ /^v/
+      when: manual
+    - when: never
+  allow_failure: true
+
+  script:
+    - openvpn /etc/openvpn/openvpn.conf
+    - ifconfig
+    - ping 192.168.90.1 -c 5
+    
+    - cd /builds/${CI_PROJECT_NAMESPACE}/
+    - rm -R ${CI_PROJECT_NAME}
+    - rsync -a --progress root@artifacts.leapbit.com:/root/${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}.tar ./
+    - tar zxf ${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHA}.tar
+    
+    - echo "${SUPERVISOR_TEST_GO}" > ${CI_JOB_STAGE}.conf
+
+    - for i in ${TEST_SERVERS//,/ }; do ssh -n root@${i} "mkdir -p /opt/versions/${CI_JOB_STAGE}/${CI_COMMIT_SHA:0:8}"; rsync -a ${CI_JOB_STAGE}.conf root@${i}:/etc/supervisor/conf.d/; rsync -a ${CI_PROJECT_DIR}/ root@${i}:/opt/versions/${CI_JOB_STAGE}/${CI_COMMIT_SHA:0:8}/; ssh -n root@${i} "ln -sfn /opt/versions/${CI_JOB_STAGE}/${CI_COMMIT_SHA:0:8}/ /opt/${CI_JOB_STAGE}"; ssh -n root@${i} "supervisorctl reread; supervisorctl update; supervisorctl restart ${CI_JOB_STAGE}"; ssh -n root@${i} "supervisorctl status"; ssh -n root@${i} "cd /opt/versions/${CI_JOB_STAGE}/;ls -t /opt/versions/${CI_JOB_STAGE}/|tail -n +6| xargs rm -R || true"; ssh -n root@${i} "supervisorctl status | grep -E '${CI_JOB_STAGE}.*RUNNING'"; echo deploy on $i done; done
