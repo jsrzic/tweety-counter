@@ -101,7 +101,7 @@ func TestGetTweetsFromTwitter(t *testing.T) {
 	ctw := HttpClientTW{
 		RequestClient: HttpRequestClient{Client: http.Client{Timeout: time.Duration(15) * time.Second}},
 		TweetNo:       10,
-		Bearer:        "Bearer AAAAAAAAAAAAAAAAAAAAAJKERQEAAAAAa7CX8LoZqQvScjJJxNxcEa802tw%3DnFsBvNXM2PP6dW34u1iu4JqC7F1bQ8Wp0pWlwkjkV20MBhnTap",
+		Bearer:        bearer,
 	}
 
 	tweets, err := ctw.getTweetsFromTwitter("2625272871")
@@ -115,7 +115,7 @@ func TestGetImageUrlsFromTwitter(t *testing.T) {
 	ctw := HttpClientTW{
 		RequestClient: HttpRequestClient{Client: http.Client{Timeout: time.Duration(15) * time.Second}},
 		TweetNo:       10,
-		Bearer:        "Bearer AAAAAAAAAAAAAAAAAAAAAJKERQEAAAAAa7CX8LoZqQvScjJJxNxcEa802tw%3DnFsBvNXM2PP6dW34u1iu4JqC7F1bQ8Wp0pWlwkjkV20MBhnTap",
+		Bearer:       bearer,
 	}
 
 	urlProfileImage, urlBanner, err := ctw.getImageUrlsFromTwitter("813286")
@@ -148,7 +148,7 @@ func TestSendImagesToDB(t *testing.T) {
 	ctw := HttpClientTW{
 		RequestClient: HttpRequestClient{Client: http.Client{Timeout: time.Duration(15) * time.Second}},
 		TweetNo:       10,
-		Bearer:        "Bearer AAAAAAAAAAAAAAAAAAAAAJKERQEAAAAAa7CX8LoZqQvScjJJxNxcEa802tw%3DnFsBvNXM2PP6dW34u1iu4JqC7F1bQ8Wp0pWlwkjkV20MBhnTap",
+		Bearer:        bearer,
 	}
 
 	urlProfileImage, urlBanner, err := ctw.getImageUrlsFromTwitter(userId)
